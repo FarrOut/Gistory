@@ -1,3 +1,4 @@
 logging
 requests
 argparse
+urllib3
