@@ -12,6 +12,7 @@ class Rest(Enum):
     GET = 'get'
     POST = 'post'
     PATCH = 'patch'
+    DELETE = 'delete'
 
 
 class Client:
@@ -100,6 +101,13 @@ class Client:
                                     data=data,
                                     ) as response:
                     return response
+            elif method is Rest.DELETE:
+                with requests.delete(__url,
+                                    headers=headers,
+                                    params=params,
+                                    data=data,
+                                    ) as response:
+                    return response                
 
         except (ConnectionError, requests.exceptions.ConnectionError, NewConnectionError) as connErr:
             Client.logger.error('Request failed to establish connection!', exc_info=connErr)
@@ -158,12 +166,10 @@ class Client:
         self.__output_gists(json_)
         self.__put_last_access_timestamp()
 
-    def create_gist(self) -> int:
+    def create_gist(self, data: dict = {}) -> int:
         Client.logger.debug('Creating a new Gist')
 
-        data = {"description": "Example of a gist", "public": False,
-                  "files": {"test.txt": {"content": "Hello World"}}}
-        # data = {"files":{"README.md":{"content":"Hello World"}}}        
+        
 
         response = self.__submit_request(method=Rest.POST, data=json.dumps(data))
 
@@ -171,17 +177,20 @@ class Client:
             case 201:
                 Client.logger.info('New Gist created.')
             case 304:
-                Client.logger.warning('New Gist Not modified.')
+                raise Exception('New Gist Not modified.')
             case 403:
-                Client.logger.error('New Gist forbidden.')
+                raise Exception('New Gist forbidden.')
             case 404:
-                Client.logger.error('New Gist resource not found.')
+                raise Exception('New Gist resource not found.')
             case 422:
-                Client.logger.warning(f'New Gist Validation failed, or the endpoint has been spammed.\n{response.text}')
-            case _:
-                Client.logger.error(f'New Gist not created.\n{response.text}')        
+                raise Exception(f'New Gist Validation failed, or the endpoint has been spammed.\n{response.text}')
+            case _: 
+                raise Exception(f'New Gist not created.\n{response.text}')
 
-        return response.status_code
+        response_json = response.json()
+        gist_id = response_json['id']
+
+        return gist_id
 
     def update_gist(self, gist_id: str):
         Client.logger.debug(f'Updating Gist \'{gist_id}\'')
@@ -192,14 +201,31 @@ class Client:
         data = {"description": "An updated gist description",
                   "files": {"test.txt": {"content": f"Updated at {timestamp}"}}}
 
-        response = self.__submit_request(method=Rest.PATCH, endpoint=f'gists/{gist_id}', data=data)
+        response = self.__submit_request(method=Rest.PATCH, endpoint=f'gists/{gist_id}', data=json.dumps(data))
 
         match response.status_code:
             case 200:
                 Client.logger.info(f'Gist {gist_id} successfully updated.')
             case 404:
-                Client.logger.error(f'Gist {gist_id} resource not found.')
+                raise Exception(f'Gist {gist_id} resource not found.')
             case 422:
-                Client.logger.warning(f'Gist {gist_id} Validation failed, or the endpoint has been spammed.\n{response.text}')
-            case _:
-                Client.logger.error(f'Gist {gist_id} not updated.\n{response.text}')
+                raise Exception(f'Gist {gist_id} Validation failed, or the endpoint has been spammed.\n{response.text}')
+            case _:                
+                raise Exception(f'Gist {gist_id} not updated.\n{response.text}')
+
+    def delete_gist(self, gist_id: str):
+        Client.logger.debug(f'Deleting Gist \'{gist_id}\'')
+
+        params = {"gist_id": gist_id}
+
+        response = self.__submit_request(method=Rest.DELETE, endpoint=f'gists/{gist_id}', params=params)
+
+        match response.status_code:
+            case 204:
+                Client.logger.info(f'Gist {gist_id} successfully updated.')
+            case 404:
+                raise Exception(f'Gist {gist_id} resource not found. Because {response.text}')
+            case 422:
+                raise Exception(f'Gist {gist_id} Validation failed, or the endpoint has been spammed. Because {response.text}')
+            case _:                
+                raise Exception(f'Gist {gist_id} not deleted. Because {response.text}')
