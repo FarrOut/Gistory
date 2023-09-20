@@ -1,15 +1,23 @@
 import json
 import datetime
+from enum import Enum
+
 import requests
 import logging
 import pytz
 from urllib3.exceptions import NewConnectionError
 
 
+class Rest(Enum):
+    GET = 'get'
+    POST = 'post'
+    PATCH = 'patch'
+
+
 class Client:
     # ISO 8601 - YYYY-MM-DDTHH:MM:SSZ
     # E.g "2010-04-14T02:15:15Z"
-    time_format = "%Y-%m-%dT%H:%M:%S"
+    time_format = "%Y-%m-%dT%H:%M:%S%Z"
 
     __url_prefix = 'https://api.github.com'
     logger = logging.getLogger()
@@ -18,11 +26,10 @@ class Client:
     def __init__(self, access_token: str, ):
         self.token = access_token
 
-
     def __put_last_access_timestamp(self):
         # TODO refactor __put_last_access_timestamp and __get_last_access_timestamp to reuse common code
 
-        date_obj = datetime.datetime.now(tz=pytz.UTC)
+        date_obj = datetime.datetime.now(tz=datetime.timezone.utc)
         # tz = pytz.timezone('Asia/Kolkata')
         # tz.localize(date_obj)
         timestamp = date_obj.strftime(Client.time_format)
@@ -59,21 +66,40 @@ class Client:
         except Exception as err:
             Client.logger.error('Failed to retrieve last access timestamp!', exc_info=err)
 
-    def __submit_request(self, endpoint: str, params: dict = {}):
+    def __submit_request(self, method: Rest, endpoint: str = 'gists', params: dict = {}, data: dict = {}):
+
         __url = f'{Client.__url_prefix}/{endpoint}'
         Client.logger.debug(f'Submitting request to {__url}...')
-        print(f'Submitting request to {__url}...')  # TODO deleteme
+
+        headers = {
+            "X-GitHub-Api-Version": '2022-11-28',
+            "Accept": "application/vnd.github+json",
+            "Authorization": "token {0}".format(self.token),
+            # "Content-Type":"application/json",
+            # "Time-Zone": "Europe/Amsterdam",
+        }
 
         try:
-            with requests.get(__url,
-                              headers={
-                                  "X-GitHub-Api-Version": '2022-11-28',
-                                  "Accept": "application/vnd.github+json",
-                                  "Authorization": "token {0}".format(self.token),
-                              },
-                              params=params,
-                              ) as response:
-                return response.json()
+            if method is Rest.GET:
+                with requests.get(__url,
+                                  headers=headers,
+                                  params=params,
+                                  ) as response:
+                    return response
+            elif method is Rest.POST:
+                with requests.post(__url,
+                                   headers=headers,
+                                   params=params,
+                                   data=data,
+                                   ) as response:
+                    return response
+            elif method is Rest.PATCH:
+                with requests.patch(__url,
+                                    headers=headers,
+                                    params=params,
+                                    data=data,
+                                    ) as response:
+                    return response
 
         except (ConnectionError, requests.exceptions.ConnectionError, NewConnectionError) as connErr:
             Client.logger.error('Request failed to establish connection!', exc_info=connErr)
@@ -125,9 +151,55 @@ class Client:
         else:
             Client.logger.info(f'Didn\'t find last access timestamp - presuming this is first-time run..')
 
-        json_ = self.__submit_request(endpoint='gists', params=params)
+        json_ = self.__submit_request(method=Rest.GET, params=params).json()
         Client.logger.debug(f'list_gist found {len(json_)} items.')
         # self.logger.debug(json.dumps(json_, sort_keys=True, indent=4))
 
         self.__output_gists(json_)
         self.__put_last_access_timestamp()
+
+    def create_gist(self) -> int:
+        Client.logger.debug('Creating a new Gist')
+
+        data = {"description": "Example of a gist", "public": False,
+                  "files": {"test.txt": {"content": "Hello World"}}}
+        # data = {"files":{"README.md":{"content":"Hello World"}}}        
+
+        response = self.__submit_request(method=Rest.POST, data=json.dumps(data))
+
+        match response.status_code:
+            case 201:
+                Client.logger.info('New Gist created.')
+            case 304:
+                Client.logger.warning('New Gist Not modified.')
+            case 403:
+                Client.logger.error('New Gist forbidden.')
+            case 404:
+                Client.logger.error('New Gist resource not found.')
+            case 422:
+                Client.logger.warning(f'New Gist Validation failed, or the endpoint has been spammed.\n{response.text}')
+            case _:
+                Client.logger.error(f'New Gist not created.\n{response.text}')        
+
+        return response.status_code
+
+    def update_gist(self, gist_id: str):
+        Client.logger.debug(f'Updating Gist \'{gist_id}\'')
+
+        date_obj = datetime.datetime.now(tz=datetime.timezone.utc)
+        timestamp = date_obj.strftime(Client.time_format)
+
+        data = {"description": "An updated gist description",
+                  "files": {"test.txt": {"content": f"Updated at {timestamp}"}}}
+
+        response = self.__submit_request(method=Rest.PATCH, endpoint=f'gists/{gist_id}', data=data)
+
+        match response.status_code:
+            case 200:
+                Client.logger.info(f'Gist {gist_id} successfully updated.')
+            case 404:
+                Client.logger.error(f'Gist {gist_id} resource not found.')
+            case 422:
+                Client.logger.warning(f'Gist {gist_id} Validation failed, or the endpoint has been spammed.\n{response.text}')
+            case _:
+                Client.logger.error(f'Gist {gist_id} not updated.\n{response.text}')

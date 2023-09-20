@@ -22,7 +22,10 @@ def main():
         logger.info('Access token received.')
 
     client = Client(access_token=token)
-    client.list_gists()
+
+    client.create_gist()
+    # client.update_gist(gist_id='4fef11b3422f814f6d06586748ae5424')
+    # client.list_gists()
 
 
 main()
