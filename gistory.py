@@ -5,7 +5,7 @@ from modules.client.client import Client
 
 logger = logging.getLogger()
 logging.basicConfig()
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 parser = argparse.ArgumentParser("gistory")
 parser.add_argument("-token", "--access_token", help="GitHub Personal Access Token.", type=str)
@@ -36,8 +36,10 @@ def main():
     # except Exception as e:
     #     logger.error(f'Failed to delete gist: {e}')
 
-    client.update_gist(gist_id='223e16840a2b8b931e8be0af6d36d39d')
-    # client.list_gists()
+    client.list_gists()
 
+    client.update_gist(gist_id='223e16840a2b8b931e8be0af6d36d39d')
+    
+    client.list_gists()
 
 main()

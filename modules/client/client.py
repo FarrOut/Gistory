@@ -163,7 +163,11 @@ class Client:
         Client.logger.debug(f'list_gist found {len(json_)} items.')
         # self.logger.debug(json.dumps(json_, sort_keys=True, indent=4))
 
-        self.__output_gists(json_)
+        if len(json_) == 0:
+            Client.logger.info('No Gists found to list.')
+            return
+        else:
+            self.__output_gists(json_)
         self.__put_last_access_timestamp()
 
     def create_gist(self, data: dict = {}) -> int:
