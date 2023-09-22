@@ -112,3 +112,4 @@ Although already impressive, this project still has a long way to go to being ev
 * [Listing unauthenticated users](https://docs.github.com/en/rest/gists/gists?apiVersion=2022-11-28#list-gists-for-a-user)
 * Allow *creating*, *updating* and *deleting* of Gists via command-line argument
 * Improve secure storage and handling of personal access token
+* Enable debug mode via flag
