@@ -46,9 +46,7 @@ class Client:
             outfile.write(json_object)
 
     def __get_last_access_timestamp(self) -> datetime:
-
         try:
-
             file_name = "gistory.config.json"
             with open(file_name, 'r') as openfile:
                 # Reading from json file
@@ -60,6 +58,8 @@ class Client:
 
                 return timestamp
 
+        except FileNotFoundError as err:
+            Client.logger.debug(f'File {file_name} not found.')
         except KeyError as err:
             Client.logger.debug('Did not find last access timestamp.')
         except ValueError as err:
