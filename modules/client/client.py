@@ -18,7 +18,7 @@ class Rest(Enum):
 class Client:
     # ISO 8601 - YYYY-MM-DDTHH:MM:SSZ
     # E.g "2010-04-14T02:15:15Z"
-    time_format = "%Y-%m-%dT%H:%M:%S%Z"
+    time_format = "%Y-%m-%dT%H:%M:%SZ"
 
     __url_prefix = 'https://api.github.com'
     logger = logging.getLogger()
