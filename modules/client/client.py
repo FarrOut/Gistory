@@ -61,7 +61,7 @@ class Client:
                 return timestamp
 
         except KeyError as err:
-            Client.logger.info('Did not find last access timestamp.')
+            Client.logger.debug('Did not find last access timestamp.')
         except ValueError as err:
             Client.logger.error('Failed to parse last access timestamp!', exc_info=err)
         except Exception as err:
